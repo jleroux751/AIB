@@ -21,7 +21,7 @@ $imageRoleDefName = "Azure Image Builder Image Def $timeInt"
 $identityName = "myIdentity$timeInt"
 
 # Create the User Identity
-New-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName
+New-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName -Location $location
 
 # Assign the identity resource and principle ID's to a variable
 $identityNamePrincipalId = (Get-AzUserAssignedIdentity -ResourceGroupName $imageResourceGroup -Name $identityName).PrincipalId

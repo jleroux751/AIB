@@ -6,7 +6,7 @@
 # The template used is from the Azure Quick Start templates
 # it creates a Windows image and outputs the finished image to a Managed IMage
 # Set the template file path and the template file name
-$Win10Url = "https://raw.githubusercontent.com/tsrob50/AIB/main/Win10MultiTemplate.json"
+$Win10Url = "https://raw.githubusercontent.com/tsrob50/AIB/main/Win10MultiAppsTemplate.json"
 $Win10FileName = "Win10MultiTemplate.json"
 #Test to see if the path exists.  Create it if not
 if ((test-path .\Template) -eq $false) {
@@ -20,13 +20,19 @@ if ((test-path .\Template\$Win10FileName) -eq $true) {
     }
 }
 else {
-    Invoke-WebRequest -Uri $Win10Url -OutFile ".\Template\$Win10FileName" -UseBasicParsing
+    <# Action when all if and elseif conditions are false #>
+} {
+        Invoke-WebRequest -Uri $Win10Url -OutFile ".\Template\$Win10FileName" -UseBasicParsing
 }
-
-# Setup the variables
+    
+# Set up the variables
 # The first four need to match Enable-identity.ps1 script
 # destination image resource group
 $imageResourceGroup = 'AIBManagedIDRG'
+# Add the file archive Shared Access Signature
+$archiveSas = "https://aibsoftwarebuild4817.blob.core.windows.net/softwareresource/Software.zip?sp=r&st=2023-02-11T14:59:41Z&se=2023-02-18T22:59:41Z&spr=https&sv=2021-06-08&sr=b&sig=iyYgL2Cv3E%2B3cVy2hF1ywiGV%2BFGA9HFbrmXi8RRaQeI%3D"
+# Add the path to the PowerShell Install Script
+$installScript = 'https://raw.githubusercontent.com/jleroux751/AIB/main/Install-Applications.ps1'
 # location (see possible locations in main docs)
 $location = (Get-AzResourceGroup -Name $imageResourceGroup).Location
 # your subscription, this will get your current subscription
@@ -51,6 +57,8 @@ $identityNameResourceId = (Get-AzUserAssignedIdentity -ResourceGroupName $imageR
 ((Get-Content -path $templateFilePath -Raw) -replace '<runOutputName>',$runOutputName) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<imageName>',$imageName) | Set-Content -Path $templateFilePath
 ((Get-Content -path $templateFilePath -Raw) -replace '<imgBuilderId>',$identityNameResourceId) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<Shared Access Signature to archive file>',$archiveSas) | Set-Content -Path $templateFilePath
+((Get-Content -path $templateFilePath -Raw) -replace '<URI to PowerShell Script>',$installScript ) | Set-Content -Path $templateFilePath
 
 # The following commands require the Az.ImageBuilder module
 # Install the PowerShell module if not already installed
@@ -68,9 +76,10 @@ Select-Object -Property Name, LastRunStatusRunState, LastRunStatusMessage, Provi
 Start-AzImageBuilderTemplate -ResourceGroupName $imageResourceGroup -Name $imageTemplateName
 
 # Create a VM to test 
-$Cred = Get-Credential 
+$Cred = Get-Credential -Credential sysadmin
 $ArtifactId = (Get-AzImageBuilderRunOutput -ImageTemplateName $imageTemplateName -ResourceGroupName $imageResourceGroup).ArtifactId
-New-AzVM -ResourceGroupName $imageResourceGroup -Image $ArtifactId -Name myWinVM01 -Credential $Cred -size Standard_D2_v2
+New-AzVM -ResourceGroupName $imageResourceGroup -Image $ArtifactId -Name myWinVM01 -Credential $Cred -size Standard_D2_v2 -PublicIpSku Standard
+
 
 # Remove the template deployment
 remove-AzImageBuilderTemplate -ImageTemplateName $imageTemplateName -ResourceGroupName $imageResourceGroup
@@ -90,7 +99,7 @@ Get-AzVMImageOffer -Location $location -PublisherName $pubName | ft Offer,Publis
 # $offerName = 'office-365'
 $offerName = 'Windows-10'
 Get-AzVMImageSku -Location $location -PublisherName $pubName -Offer $offerName | ft Skus,Offer,PublisherName,Location
-$skuName = '21h1-evd'
+$skuName = '20h1-evd'
 Get-AzVMImage -Location $location -PublisherName $pubName -Skus $skuName -Offer $offerName
-$version = '19043.2364.221205'
+$version = '19041.572.2010091946'
 Get-AzVMImage -Location $location -PublisherName $pubName -Offer $offerName -Skus $skuName -Version $version
